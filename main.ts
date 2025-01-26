@@ -105,7 +105,7 @@ export default class IdLinkPlugin extends Plugin {
 				case IdSource.FileName: {
 					const regex = new RegExp(this.settings.idFilenameRegex);
 					return (p: Record<string, any>, id: string) =>
-						regex.exec(p.file.path)?.[1] == id;
+						regex.exec(p.file.name)?.[1] == id;
 				}
 			}
 		});
