@@ -1,134 +1,189 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import {
+	App,
+	Notice,
+	Plugin,
+	PluginSettingTab,
+	Setting,
+	ToggleComponent,
+} from "obsidian";
+import { getAPI, DataviewApi, isPluginEnabled } from "obsidian-dataview";
 
-// Remember to rename these classes and interfaces!
-
-interface MyPluginSettings {
-	mySetting: string;
+enum IdSource {
+	Property = "0-property",
+	FileName = "1-fileName",
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
+interface IdLinkSettings {
+	idSources: IdSource[];
+
+	idProperty: string;
+	idFilenameRegex: string;
 }
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+const DEFAULT_SETTINGS: IdLinkSettings = {
+	idSources: [IdSource.Property, IdSource.FileName],
+	idProperty: "id",
+	idFilenameRegex: "^(\\d{14}) ",
+};
+
+export default class IdLinkPlugin extends Plugin {
+	settings: IdLinkSettings;
+	checks: ((p: Record<string, any>, id: string) => boolean)[];
 
 	async onload() {
 		await this.loadSettings();
 
-		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-		// Perform additional things with the ribbon
-		ribbonIconEl.addClass('my-plugin-ribbon-class');
+		this.loadChecks();
 
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status Bar Text');
+		this.addSettingTab(new IdLinkSettingTab(this.app, this));
 
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-sample-modal-simple',
-			name: 'Open sample modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
+		this.registerObsidianProtocolHandler("id-link", (params) => {
+			const dvApi = this.getDataViewApi();
+
+			const id = params["id"];
+			if (!id) {
+				this.showErrorAndThrow("Id is missed in link");
 			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'sample-editor-command',
-			name: 'Sample editor command',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				console.log(editor.getSelection());
-				editor.replaceSelection('Sample Editor Command');
+
+			const path = dvApi
+				.pages()
+				.where((p) => this.checks.some((check) => check(p, id)))
+				.first()?.file.path;
+
+			if (!path) {
+				this.showErrorAndThrow(`Page with id ${id} is not found`);
 			}
+
+			this.app.workspace.openLinkText(path, "", false, { active: true });
 		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-sample-modal-complex',
-			name: 'Open sample modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-			}
-		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			console.log('click', evt);
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 	}
 
-	onunload() {
+	onunload() {}
 
+	getDataViewApi(): DataviewApi {
+		const errorMessage =
+			"Dataview is missed. Please install and enable Dataview plugin to use Id Link plugin";
+
+		if (!isPluginEnabled(this.app)) {
+			this.showErrorAndThrow(errorMessage);
+		}
+
+		const dvApi = getAPI(this.app);
+
+		if (!dvApi) {
+			this.showErrorAndThrow(errorMessage);
+		}
+
+		return dvApi;
+	}
+
+	private showErrorAndThrow(errorMessage: string): never {
+		const message = `Id Link: ${errorMessage}`;
+
+		new Notice(message);
+		throw Error(message);
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		this.settings = Object.assign(
+			{},
+			DEFAULT_SETTINGS,
+			await this.loadData(),
+		);
 	}
 
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
+
+	loadChecks() {
+		this.checks = this.settings.idSources.map((source) => {
+			switch (source) {
+				case IdSource.Property:
+					return (p: Record<string, any>, id: string) =>
+						p[this.settings.idProperty] == id;
+				case IdSource.FileName: {
+					const regex = new RegExp(this.settings.idFilenameRegex);
+					return (p: Record<string, any>, id: string) =>
+						regex.exec(p.file.path)?.[1] == id;
+				}
+			}
+		});
+	}
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
+class IdLinkSettingTab extends PluginSettingTab {
+	plugin: IdLinkPlugin;
 
-	onOpen() {
-		const {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
-}
-
-class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
-
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: IdLinkPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
 
 	display(): void {
-		const {containerEl} = this;
+		const { containerEl } = this;
 
 		containerEl.empty();
 
 		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
+			.setName("Id sources: Property")
+			.setDesc("Enable id search by property")
+			.addToggle((toggle) =>
+				this.toggleForIdSource(IdSource.Property, toggle),
+			);
+
+		new Setting(containerEl)
+			.setName("Id property")
+			.setDesc("Choose which property will be used for id")
+			.addText((text) =>
+				text
+					.setPlaceholder("id")
+					.setValue(this.plugin.settings.idProperty)
+					.onChange(async (value) => {
+						this.plugin.settings.idProperty = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Id sources: File name")
+			.setDesc("Enable id search by file name")
+			.addToggle((toggle) =>
+				this.toggleForIdSource(IdSource.FileName, toggle),
+			);
+
+		new Setting(containerEl)
+			.setName("Id filename regex")
+			.setDesc(
+				"Choose which regex will be used for id, first group will be used",
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("regex")
+					.setValue(this.plugin.settings.idFilenameRegex)
+					.onChange(async (value) => {
+						this.plugin.settings.idFilenameRegex = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+	}
+
+	private toggleForIdSource(source: IdSource, toggle: ToggleComponent) {
+		toggle
+			.setValue(this.plugin.settings.idSources.includes(source))
+			.onChange(async (value) => {
+				if (value) {
+					this.plugin.settings.idSources.push(source);
+				} else {
+					this.plugin.settings.idSources =
+						this.plugin.settings.idSources.filter(
+							(s) => s != source,
+						);
+				}
+				// Sort sources to keep order
+				this.plugin.settings.idSources.sort();
+				this.plugin.loadChecks();
+				await this.plugin.saveSettings();
+			});
 	}
 }
