@@ -5,6 +5,7 @@ import {
 	PluginSettingTab,
 	Setting,
 	ToggleComponent,
+	TFile,
 } from "obsidian";
 import { getAPI, DataviewApi, isPluginEnabled } from "obsidian-dataview";
 
@@ -37,6 +38,35 @@ export default class IdLinkPlugin extends Plugin {
 
 		this.addSettingTab(new IdLinkSettingTab(this.app, this));
 
+		this.registerEvent(
+			this.app.workspace.on("file-menu", (menu, file) => {
+				if (!(file instanceof TFile)) {
+					return;
+				}
+
+				menu.addItem((item) => {
+					item.setTitle("Copy ID Link")
+						.setIcon("link")
+						.onClick(() => this.findIdAndGenerateLink(file));
+				});
+			}),
+		);
+
+		this.addCommand({
+			id: "copy-id-link",
+			name: "Copy ID Link",
+			callback: () => {
+				const activeFile = this.app.workspace.getActiveFile();
+
+				if (!activeFile) {
+					new Notice("No active file");
+					return;
+				}
+
+				this.findIdAndGenerateLink(activeFile);
+			},
+		});
+
 		this.registerObsidianProtocolHandler("id-link", (params) => {
 			const dvApi = this.getDataViewApi();
 
@@ -47,7 +77,9 @@ export default class IdLinkPlugin extends Plugin {
 
 			const path = dvApi
 				.pages()
-				.where((p) => this.checks.some((check) => check(p, id)))
+				.where((p: Record<string, any>) =>
+					this.checks.some((check) => check(p, id)),
+				)
 				.first()?.file.path;
 
 			if (!path) {
@@ -109,6 +141,41 @@ export default class IdLinkPlugin extends Plugin {
 				}
 			}
 		});
+	}
+
+	generateIdLink(id: string): string {
+		const vaultName = this.app.vault.getName();
+		return `obsidian://id-link?vault=${encodeURIComponent(vaultName)}&id=${encodeURIComponent(id)}`;
+	}
+
+	private findIdAndGenerateLink(file: TFile): void {
+		let id: string | undefined;
+
+		// Try to find ID from property
+		if (this.settings.idSources.includes(IdSource.Property)) {
+			const cache = this.app.metadataCache.getFileCache(file);
+			if (cache?.frontmatter) {
+				id = cache.frontmatter[this.settings.idProperty];
+			}
+		}
+
+		// Try to find ID from filename if not found in property
+		if (!id && this.settings.idSources.includes(IdSource.FileName)) {
+			const regex = new RegExp(this.settings.idFilenameRegex);
+			const match = regex.exec(file.name);
+			if (match) {
+				id = match[1];
+			}
+		}
+
+		if (!id) {
+			new Notice("No ID found in the file");
+			return;
+		}
+
+		const link = this.generateIdLink(id);
+		navigator.clipboard.writeText(link);
+		new Notice("ID link copied to clipboard");
 	}
 }
 
