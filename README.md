@@ -95,11 +95,7 @@ To prepare a new release:
    - Bump version in package.json
    - Update manifest.json and versions.json
    - Create a git commit with version tag
-
-3. Push changes and tag:
-
-   ```bash
-   git push && git push --tags
-   ```
+   - Push changes and tags to remote
+   - Create/update GitHub release with changelog
 
 Note: Make sure your commits follow the [Conventional Commits](https://www.conventionalcommits.org/) specification for automatic version determination to work correctly.
