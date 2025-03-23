@@ -22,6 +22,7 @@ interface IdLinkSettings {
 	idFilenameRegex: string;
 	idFormat: string;
 	autoGenerateId: boolean;
+	syncIdToProperty: boolean;
 }
 
 const DEFAULT_SETTINGS: IdLinkSettings = {
@@ -30,6 +31,7 @@ const DEFAULT_SETTINGS: IdLinkSettings = {
 	idFilenameRegex: "^(\\d{14})[ .]",
 	idFormat: "YYYYMMDDHHmmss",
 	autoGenerateId: true,
+	syncIdToProperty: false,
 };
 
 export default class IdLinkPlugin extends Plugin {
@@ -44,6 +46,15 @@ export default class IdLinkPlugin extends Plugin {
 		this.updateFilenameRegex();
 
 		this.addSettingTab(new IdLinkSettingTab(this.app, this));
+
+		// Register file save event handler
+		this.registerEvent(
+			this.app.vault.on("modify", (file) => {
+				if (file instanceof TFile && this.settings.syncIdToProperty) {
+					this.syncIdFromFileName(file);
+				}
+			}),
+		);
 
 		this.registerEvent(
 			this.app.workspace.on("file-menu", (menu, file) => {
@@ -178,6 +189,11 @@ export default class IdLinkPlugin extends Plugin {
 		return this.filenameRegex.exec(fileName)?.[1];
 	}
 
+	private findIdInProperty(file: TFile): string | undefined {
+		const cache = this.app.metadataCache.getFileCache(file);
+		return cache?.frontmatter?.[this.settings.idProperty];
+	}
+
 	generateIdLink(id: string): string {
 		const vaultName = this.app.vault.getName();
 		return `obsidian://id-link?vault=${encodeURIComponent(vaultName)}&id=${encodeURIComponent(id)}`;
@@ -198,8 +214,7 @@ export default class IdLinkPlugin extends Plugin {
 
 		// Try to find ID from property
 		if (this.settings.idSources.includes(IdSource.Property)) {
-			const cache = this.app.metadataCache.getFileCache(file);
-			id = cache?.frontmatter?.[this.settings.idProperty];
+			id = this.findIdInProperty(file);
 		}
 
 		// Try to find ID from filename if not found in property
@@ -225,6 +240,26 @@ export default class IdLinkPlugin extends Plugin {
 		const link = this.generateIdLink(id);
 		navigator.clipboard.writeText(link);
 		new Notice("ID link copied to clipboard");
+	}
+
+	private async syncIdFromFileName(file: TFile): Promise<void> {
+		if (
+			!this.settings.idSources.includes(IdSource.FileName) ||
+			!this.settings.idSources.includes(IdSource.Property)
+		) {
+			return;
+		}
+
+		const propertyId = this.findIdInProperty(file);
+		const fileNameId = this.findIdInFileName(file.name);
+
+		if (!fileNameId) {
+			return;
+		}
+
+		if (!propertyId || propertyId !== fileNameId) {
+			await this.saveIdToProperty(file, fileNameId);
+		}
 	}
 }
 
@@ -322,6 +357,25 @@ class IdLinkSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}),
 			);
+
+		if (
+			this.plugin.settings.idSources.includes(IdSource.Property) &&
+			this.plugin.settings.idSources.includes(IdSource.FileName)
+		) {
+			new Setting(containerEl)
+				.setName("Sync ID from filename to property")
+				.setDesc(
+					"Automatically sync ID from filename to property when both sources are enabled. Updates property if IDs differ.",
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(this.plugin.settings.syncIdToProperty)
+						.onChange(async (value) => {
+							this.plugin.settings.syncIdToProperty = value;
+							await this.plugin.saveSettings();
+						}),
+				);
+		}
 	}
 
 	private toggleForIdSource(source: IdSource, toggle: ToggleComponent) {

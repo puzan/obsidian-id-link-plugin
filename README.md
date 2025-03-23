@@ -37,6 +37,12 @@ The plugin provides two ways to generate ID links:
 
 In both cases, the generated link will be automatically copied to your clipboard.
 
+Generated links follow this format:
+
+```
+obsidian://id-link?vault=<vault-name>&id=<note-id>
+```
+
 ### Automatic ID Generation
 
 When using the Frontmatter Property source, the plugin can automatically generate and save a new ID if one is not found. The generated ID follows a configurable format using moment.js date formatting.
@@ -48,21 +54,21 @@ The plugin provides a command to generate a new ID in the configured format:
 - Through Command Palette (`Cmd/Ctrl + P`): "Generate New ID"
 - The generated ID will be automatically copied to your clipboard and displayed in a notice
 
-### Using ID Links
+### ID Synchronization
 
-Generated links follow this format:
+When both ID sources (Frontmatter Property and Filename) are enabled, the plugin can automatically synchronize IDs between them:
 
-```
-obsidian://id-link?vault=<vault-name>&id=<note-id>
-```
+- If an ID exists in the filename but not in the frontmatter, it will be added to the frontmatter
+- If IDs exist in both places but differ, the ID from the filename will be used to update the frontmatter
+- Synchronization happens automatically when a file is saved
 
 ## Settings
 
 You can configure the plugin in Settings > ID Link:
 
-
 - **Id Sources**: Enable/disable searching for IDs in frontmatter and filenames
 - **Id format**: Configure the format for generated IDs using moment.js date format (default: "YYYYMMDDHHmmss")
+- **Sync ID from filename to property**: When both ID sources are enabled, automatically sync IDs from filename to frontmatter property on file save
 
 ### Property ID Settings
 

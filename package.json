@@ -10,9 +10,10 @@
 		"eslint": "eslint '**/*.ts' --fix",
 		"prettier": "prettier --write '**/*.ts'",
 		"changelog": "conventional-changelog -p angular -r 2 -t ''",
+		"release:prepare": "npm run eslint && npm run prettier",
 		"release:bump": "npm version $(npx conventional-recommended-bump -p angular -t '')",
 		"release:push": "git push && git push --tags",
-		"release": "npm run release:bump && npm run release:push"
+		"release": "npm run release:prepare && npm run release:bump && npm run release:push"
 	},
 	"keywords": [],
 	"author": "@puzan",
