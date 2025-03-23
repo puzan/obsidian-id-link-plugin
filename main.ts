@@ -6,6 +6,7 @@ import {
 	Setting,
 	ToggleComponent,
 	TFile,
+	moment,
 } from "obsidian";
 import { getAPI, DataviewApi, isPluginEnabled } from "obsidian-dataview";
 
@@ -19,12 +20,16 @@ interface IdLinkSettings {
 
 	idProperty: string;
 	idFilenameRegex: string;
+	idFormat: string;
+	autoGenerateId: boolean;
 }
 
 const DEFAULT_SETTINGS: IdLinkSettings = {
 	idSources: [IdSource.Property, IdSource.FileName],
 	idProperty: "id",
 	idFilenameRegex: "^(\\d{14}) ",
+	idFormat: "YYYYMMDDHHmmss",
+	autoGenerateId: true,
 };
 
 export default class IdLinkPlugin extends Plugin {
@@ -64,6 +69,16 @@ export default class IdLinkPlugin extends Plugin {
 				}
 
 				this.findIdAndGenerateLink(activeFile);
+			},
+		});
+
+		this.addCommand({
+			id: "generate-new-id",
+			name: "Generate New ID",
+			callback: () => {
+				const id = this.generateNewId();
+				navigator.clipboard.writeText(id);
+				new Notice(`Generated ID copied to clipboard: ${id}`);
 			},
 		});
 
@@ -148,7 +163,17 @@ export default class IdLinkPlugin extends Plugin {
 		return `obsidian://id-link?vault=${encodeURIComponent(vaultName)}&id=${encodeURIComponent(id)}`;
 	}
 
-	private findIdAndGenerateLink(file: TFile): void {
+	private generateNewId(): string {
+		return moment().format(this.settings.idFormat);
+	}
+
+	private async saveIdToProperty(file: TFile, id: string): Promise<void> {
+		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+			frontmatter[this.settings.idProperty] = id;
+		});
+	}
+
+	private async findIdAndGenerateLink(file: TFile): Promise<void> {
 		let id: string | undefined;
 
 		// Try to find ID from property
@@ -166,6 +191,12 @@ export default class IdLinkPlugin extends Plugin {
 			if (match) {
 				id = match[1];
 			}
+		}
+
+		// Generate new ID if not found and auto generation is enabled
+		if (!id && this.settings.autoGenerateId && this.settings.idSources.includes(IdSource.Property)) {
+			id = this.generateNewId();
+			await this.saveIdToProperty(file, id);
 		}
 
 		if (!id) {
@@ -192,6 +223,8 @@ class IdLinkSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
+		// Property ID settings group
+		containerEl.createEl("h3", { text: "Property ID Settings" });
 		new Setting(containerEl)
 			.setName("Id sources: Property")
 			.setDesc("Enable id search by property")
@@ -199,19 +232,35 @@ class IdLinkSettingTab extends PluginSettingTab {
 				this.toggleForIdSource(IdSource.Property, toggle),
 			);
 
-		new Setting(containerEl)
-			.setName("Id property")
-			.setDesc("Choose which property will be used for id")
-			.addText((text) =>
-				text
-					.setPlaceholder("id")
-					.setValue(this.plugin.settings.idProperty)
-					.onChange(async (value) => {
-						this.plugin.settings.idProperty = value;
-						await this.plugin.saveSettings();
-					}),
-			);
+		if (this.plugin.settings.idSources.includes(IdSource.Property)) {
+			new Setting(containerEl)
+				.setName("Id property")
+				.setDesc("Choose which property will be used for id")
+				.addText((text) =>
+					text
+						.setPlaceholder("id")
+						.setValue(this.plugin.settings.idProperty)
+						.onChange(async (value) => {
+							this.plugin.settings.idProperty = value;
+							await this.plugin.saveSettings();
+						}),
+				);
 
+			new Setting(containerEl)
+				.setName("Auto generate ID")
+				.setDesc("Automatically generate and save ID if not found (only when Property ID source is enabled)")
+				.addToggle((toggle) =>
+					toggle
+						.setValue(this.plugin.settings.autoGenerateId)
+						.onChange(async (value) => {
+							this.plugin.settings.autoGenerateId = value;
+							await this.plugin.saveSettings();
+						}),
+				);
+		}
+
+		// Filename ID settings group
+		containerEl.createEl("h3", { text: "Filename ID Settings" });
 		new Setting(containerEl)
 			.setName("Id sources: File name")
 			.setDesc("Enable id search by file name")
@@ -219,17 +268,36 @@ class IdLinkSettingTab extends PluginSettingTab {
 				this.toggleForIdSource(IdSource.FileName, toggle),
 			);
 
+		if (this.plugin.settings.idSources.includes(IdSource.FileName)) {
+			new Setting(containerEl)
+				.setName("Id filename regex")
+				.setDesc(
+					"Choose which regex will be used for id, first group will be used",
+				)
+				.addText((text) =>
+					text
+						.setPlaceholder("regex")
+						.setValue(this.plugin.settings.idFilenameRegex)
+						.onChange(async (value) => {
+							this.plugin.settings.idFilenameRegex = value;
+							await this.plugin.saveSettings();
+						}),
+				);
+		}
+
+		// Common settings group
+		containerEl.createEl("h3", { text: "Common Settings" });
 		new Setting(containerEl)
-			.setName("Id filename regex")
+			.setName("Id format")
 			.setDesc(
-				"Choose which regex will be used for id, first group will be used",
+				"Choose which format will be used for generating new ids. Uses moment.js format.",
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder("regex")
-					.setValue(this.plugin.settings.idFilenameRegex)
+					.setPlaceholder("YYYYMMDDHHmmss")
+					.setValue(this.plugin.settings.idFormat)
 					.onChange(async (value) => {
-						this.plugin.settings.idFilenameRegex = value;
+						this.plugin.settings.idFormat = value;
 						await this.plugin.saveSettings();
 					}),
 			);
@@ -251,6 +319,9 @@ class IdLinkSettingTab extends PluginSettingTab {
 				this.plugin.settings.idSources.sort();
 				this.plugin.loadChecks();
 				await this.plugin.saveSettings();
+				
+				// Toggle Redisplay
+				this.display();
 			});
 	}
 }

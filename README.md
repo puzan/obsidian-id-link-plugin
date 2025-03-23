@@ -31,10 +31,22 @@ The plugin can find IDs from two sources (configurable in settings):
 ### Generating ID Links
 
 The plugin provides two ways to generate ID links:
+
 - Through Command Palette (`Cmd/Ctrl + P`)
 - Through file context menu (right-click on a note)
 
 In both cases, the generated link will be automatically copied to your clipboard.
+
+### Automatic ID Generation
+
+When using the Frontmatter Property source, the plugin can automatically generate and save a new ID if one is not found. The generated ID follows a configurable format using moment.js date formatting.
+
+### Generate New ID
+
+The plugin provides a command to generate a new ID in the configured format:
+
+- Through Command Palette (`Cmd/Ctrl + P`): "Generate New ID"
+- The generated ID will be automatically copied to your clipboard and displayed in a notice
 
 ### Using ID Links
 
@@ -48,9 +60,18 @@ obsidian://id-link?vault=<vault-name>&id=<note-id>
 
 You can configure the plugin in Settings > ID Link:
 
-- **ID Sources**: Enable/disable searching for IDs in frontmatter and filenames
-- **ID Property**: Set the frontmatter property name to use for IDs
-- **ID Filename Regex**: Configure the regex pattern to extract IDs from filenames
+
+- **Id Sources**: Enable/disable searching for IDs in frontmatter and filenames
+- **Id format**: Configure the format for generated IDs using moment.js date format (default: "YYYYMMDDHHmmss")
+
+### Property ID Settings
+
+- **Id property**: Set the frontmatter property name to use for IDs
+- **Auto generate ID**: Automatically generate and save a new ID if not found
+
+### Filename ID Settings
+
+- **Id filename regex**: Configure the regex pattern to extract IDs from filenames
 
 ## Requirements
 
