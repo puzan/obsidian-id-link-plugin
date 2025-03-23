@@ -12,8 +12,7 @@
 		"changelog": "conventional-changelog -p angular -r 2 -t ''",
 		"release:bump": "npm version $(npx conventional-recommended-bump -p angular -t '')",
 		"release:push": "git push && git push --tags",
-		"release:publish": "gh release edit $(npm pkg get version --json | sed 's/\"//g') --notes \"$(npm run changelog --silent)\" --draft=false --latest",
-		"release": "npm run release:bump && npm run release:push && npm run release:publish"
+		"release": "npm run release:bump && npm run release:push"
 	},
 	"keywords": [],
 	"author": "@puzan",

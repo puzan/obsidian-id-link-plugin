@@ -31,5 +31,6 @@ jobs:
 
           gh release create "$tag" \
             --title="$tag" \
-            --draft \
+            --notes="$(npm run changelog --silent)" \
+            --latest \
             main.js manifest.json
