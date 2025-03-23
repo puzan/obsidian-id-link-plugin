@@ -80,14 +80,18 @@ To prepare a new release:
    npm run prettier  # Run Prettier
    ```
 
-2. Update version:
+2. Create a release:
 
-  <!-- TODO ReCheck -->
    ```bash
-   npm version patch # or minor/major as needed
+   npm run release
    ```
 
    This will:
+   - Analyze commits since last tag using conventional commits
+   - Determine version bump type (major/minor/patch) based on commit types:
+     - `feat!` or `BREAKING CHANGE:` → major
+     - `feat:` → minor
+     - `fix:` and others → patch
    - Bump version in package.json
    - Update manifest.json and versions.json
    - Create a git commit with version tag
@@ -97,3 +101,5 @@ To prepare a new release:
    ```bash
    git push && git push --tags
    ```
+
+Note: Make sure your commits follow the [Conventional Commits](https://www.conventionalcommits.org/) specification for automatic version determination to work correctly.
