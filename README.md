@@ -1,94 +1,99 @@
-# Obsidian Sample Plugin
+# Obsidian ID Link Plugin
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+A plugin for Obsidian that allows you to create and use ID-based links to notes using unique identifiers (IDs) stored either in frontmatter or filename. This plugin helps you maintain stable references between notes by using IDs instead of file names, allowing the generated links to work outside of Obsidian and continue functioning even after file renaming.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+## Installation
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+### From BRAT
 
-## First time developing plugins?
+1. Install BRAT plugin from Obsidian Community Plugins
+2. Open BRAT settings
+3. Add "puzan/obsidian-id-link" to the "Beta plugin list"
+4. Go to Community Plugins
+5. Enable "ID Link" plugin
 
-Quick starting guide for new plugin devs:
+### Manual Installation
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+1. Download the latest release from the releases page
+2. Extract the files into your vault's plugins folder: `<vault>/.obsidian/plugins/obsidian-id-link-plugin/`
+3. Reload Obsidian
+4. Enable the plugin in Settings > Community Plugins
 
-## Releasing new releases
+## Features
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+### ID Sources
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+The plugin can find IDs from two sources (configurable in settings):
 
-## Adding your plugin to the community plugin list
+1. **Frontmatter Property**: Looks for an ID in the note's frontmatter (default property name is "id")
+2. **Filename**: Extracts ID from the note's filename using a regex pattern (default pattern is "^(\\d{14}) ")
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+### Generating ID Links
 
-## How to use
+The plugin provides two ways to generate ID links:
+- Through Command Palette (`Cmd/Ctrl + P`)
+- Through file context menu (right-click on a note)
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+In both cases, the generated link will be automatically copied to your clipboard.
 
-## Manually installing the plugin
+### Using ID Links
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+Generated links follow this format:
 
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint .\src\`
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+```
+obsidian://id-link?vault=<vault-name>&id=<note-id>
 ```
 
-If you have multiple URLs, you can also do:
+## Settings
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
-```
+You can configure the plugin in Settings > ID Link:
 
-## API Documentation
+- **ID Sources**: Enable/disable searching for IDs in frontmatter and filenames
+- **ID Property**: Set the frontmatter property name to use for IDs
+- **ID Filename Regex**: Configure the regex pattern to extract IDs from filenames
 
-See https://github.com/obsidianmd/obsidian-api
+## Requirements
+
+- Obsidian v0.15.0 or higher
+- Dataview plugin (for ID-based navigation)
+
+## Development
+
+This plugin is built using TypeScript and requires Node.js v16 or higher.
+
+To set up the development environment:
+
+1. Clone the repository
+2. Run `npm install`
+3. Run `npm run dev` to start compilation in watch mode
+4. Make changes to `main.ts`
+5. Reload Obsidian to test changes
+
+### Releasing
+
+To prepare a new release:
+
+1. Run linting and formatting:
+
+   ```bash
+   npm run eslint    # Run ESLint
+   npm run prettier  # Run Prettier
+   ```
+
+2. Update version:
+
+  <!-- TODO ReCheck -->
+   ```bash
+   npm version patch # or minor/major as needed
+   ```
+
+   This will:
+   - Bump version in package.json
+   - Update manifest.json and versions.json
+   - Create a git commit with version tag
+
+3. Push changes and tag:
+
+   ```bash
+   git push && git push --tags
+   ```
