@@ -27,7 +27,7 @@ interface IdLinkSettings {
 const DEFAULT_SETTINGS: IdLinkSettings = {
 	idSources: [IdSource.Property, IdSource.FileName],
 	idProperty: "id",
-	idFilenameRegex: "^(\\d{14}) ",
+	idFilenameRegex: "^(\\d{14})[ .]",
 	idFormat: "YYYYMMDDHHmmss",
 	autoGenerateId: true,
 };
@@ -35,11 +35,13 @@ const DEFAULT_SETTINGS: IdLinkSettings = {
 export default class IdLinkPlugin extends Plugin {
 	settings: IdLinkSettings;
 	checks: ((p: Record<string, any>, id: string) => boolean)[];
+	private filenameRegex: RegExp;
 
 	async onload() {
 		await this.loadSettings();
 
 		this.loadChecks();
+		this.updateFilenameRegex();
 
 		this.addSettingTab(new IdLinkSettingTab(this.app, this));
 
@@ -90,12 +92,22 @@ export default class IdLinkPlugin extends Plugin {
 				this.showErrorAndThrow("Id is missed in link");
 			}
 
-			const path = dvApi
+			// Try to find file by using Dataview
+			let path: string | undefined = dvApi
 				.pages()
 				.where((p: Record<string, any>) =>
 					this.checks.some((check) => check(p, id)),
 				)
 				.first()?.file.path;
+
+			// Try to find file by filename using native Obsidian API only if file was not found by property
+			if (!path && this.settings.idSources.includes(IdSource.FileName)) {
+				const files = this.app.vault.getFiles();
+				const file = files.find((file) => {
+					return this.findIdInFileName(file.name) === id;
+				});
+				path = file?.path;
+			}
 
 			if (!path) {
 				this.showErrorAndThrow(`Page with id ${id} is not found`);
@@ -137,6 +149,7 @@ export default class IdLinkPlugin extends Plugin {
 			DEFAULT_SETTINGS,
 			await this.loadData(),
 		);
+		this.updateFilenameRegex();
 	}
 
 	async saveSettings() {
@@ -150,12 +163,19 @@ export default class IdLinkPlugin extends Plugin {
 					return (p: Record<string, any>, id: string) =>
 						p[this.settings.idProperty] == id;
 				case IdSource.FileName: {
-					const regex = new RegExp(this.settings.idFilenameRegex);
 					return (p: Record<string, any>, id: string) =>
-						regex.exec(p.file.name)?.[1] == id;
+						this.findIdInFileName(p.file.name) === id;
 				}
 			}
 		});
+	}
+
+	updateFilenameRegex() {
+		this.filenameRegex = new RegExp(this.settings.idFilenameRegex);
+	}
+
+	private findIdInFileName(fileName: string): string | undefined {
+		return this.filenameRegex.exec(fileName)?.[1];
 	}
 
 	generateIdLink(id: string): string {
@@ -179,18 +199,12 @@ export default class IdLinkPlugin extends Plugin {
 		// Try to find ID from property
 		if (this.settings.idSources.includes(IdSource.Property)) {
 			const cache = this.app.metadataCache.getFileCache(file);
-			if (cache?.frontmatter) {
-				id = cache.frontmatter[this.settings.idProperty];
-			}
+			id = cache?.frontmatter?.[this.settings.idProperty];
 		}
 
 		// Try to find ID from filename if not found in property
 		if (!id && this.settings.idSources.includes(IdSource.FileName)) {
-			const regex = new RegExp(this.settings.idFilenameRegex);
-			const match = regex.exec(file.name);
-			if (match) {
-				id = match[1];
-			}
+			id = this.findIdInFileName(file.name);
 		}
 
 		// Generate new ID if not found and auto generation is enabled
@@ -286,6 +300,7 @@ class IdLinkSettingTab extends PluginSettingTab {
 						.setValue(this.plugin.settings.idFilenameRegex)
 						.onChange(async (value) => {
 							this.plugin.settings.idFilenameRegex = value;
+							this.plugin.updateFilenameRegex();
 							await this.plugin.saveSettings();
 						}),
 				);

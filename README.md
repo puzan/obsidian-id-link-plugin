@@ -26,7 +26,7 @@ A plugin for Obsidian that allows you to create and use ID-based links to notes 
 The plugin can find IDs from two sources (configurable in settings):
 
 1. **Frontmatter Property**: Looks for an ID in the note's frontmatter (default property name is "id")
-2. **Filename**: Extracts ID from the note's filename using a regex pattern (default pattern is "^(\\d{14}) ")
+2. **Filename**: Extracts ID from any file's filename using a regex pattern (default pattern is "^(\\d{14}) "). This works for all file types, not just markdown files.
 
 ### Generating ID Links
 
