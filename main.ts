@@ -194,7 +194,11 @@ export default class IdLinkPlugin extends Plugin {
 		}
 
 		// Generate new ID if not found and auto generation is enabled
-		if (!id && this.settings.autoGenerateId && this.settings.idSources.includes(IdSource.Property)) {
+		if (
+			!id &&
+			this.settings.autoGenerateId &&
+			this.settings.idSources.includes(IdSource.Property)
+		) {
 			id = this.generateNewId();
 			await this.saveIdToProperty(file, id);
 		}
@@ -248,7 +252,9 @@ class IdLinkSettingTab extends PluginSettingTab {
 
 			new Setting(containerEl)
 				.setName("Auto generate ID")
-				.setDesc("Automatically generate and save ID if not found (only when Property ID source is enabled)")
+				.setDesc(
+					"Automatically generate and save ID if not found (only when Property ID source is enabled)",
+				)
 				.addToggle((toggle) =>
 					toggle
 						.setValue(this.plugin.settings.autoGenerateId)
@@ -319,7 +325,7 @@ class IdLinkSettingTab extends PluginSettingTab {
 				this.plugin.settings.idSources.sort();
 				this.plugin.loadChecks();
 				await this.plugin.saveSettings();
-				
+
 				// Toggle Redisplay
 				this.display();
 			});
