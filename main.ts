@@ -65,7 +65,9 @@ export default class IdLinkPlugin extends Plugin {
 				menu.addItem((item) => {
 					item.setTitle("Copy ID Link")
 						.setIcon("link")
-						.onClick(() => this.findIdAndGenerateLink(file));
+						.onClick(() =>
+							this.generateLinkAndCopyToClipboard(file),
+						);
 				});
 			}),
 		);
@@ -81,7 +83,7 @@ export default class IdLinkPlugin extends Plugin {
 					return;
 				}
 
-				this.findIdAndGenerateLink(activeFile);
+				this.generateLinkAndCopyToClipboard(activeFile);
 			},
 		});
 
@@ -209,7 +211,18 @@ export default class IdLinkPlugin extends Plugin {
 		});
 	}
 
-	private async findIdAndGenerateLink(file: TFile): Promise<void> {
+	private async generateLinkAndCopyToClipboard(file: TFile): Promise<void> {
+		const link = await this.findIdAndGenerateLink(file);
+		if (!link) {
+			new Notice("No ID found in the file");
+			return;
+		}
+
+		navigator.clipboard.writeText(link);
+		new Notice("ID link copied to clipboard");
+	}
+
+	async findIdAndGenerateLink(file: TFile): Promise<string | undefined> {
 		let id: string | undefined;
 
 		// Try to find ID from property
@@ -233,13 +246,10 @@ export default class IdLinkPlugin extends Plugin {
 		}
 
 		if (!id) {
-			new Notice("No ID found in the file");
-			return;
+			return undefined;
 		}
 
-		const link = this.generateIdLink(id);
-		navigator.clipboard.writeText(link);
-		new Notice("ID link copied to clipboard");
+		return this.generateIdLink(id);
 	}
 
 	private async syncIdFromFileName(file: TFile): Promise<void> {
