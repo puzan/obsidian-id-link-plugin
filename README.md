@@ -32,7 +32,7 @@ The plugin can find IDs from two sources (configurable in settings):
 
 The plugin provides two ways to generate ID links:
 
-- Through Command Palette (`Cmd/Ctrl + P`)
+- Through Command Palette (`Cmd/Ctrl + P`): "Copy ID Link"
 - Through file context menu (right-click on a note)
 
 In both cases, the generated link will be automatically copied to your clipboard.
@@ -42,6 +42,13 @@ Generated links follow this format:
 ```
 obsidian://id-link?vault=<vault-name>&id=<note-id>
 ```
+
+### Copying IDs
+
+The plugin provides a command to copy just the ID (without generating a link):
+
+- Through Command Palette (`Cmd/Ctrl + P`): "Copy Id"
+- The ID will be automatically copied to your clipboard and displayed in a notice
 
 ### Automatic ID Generation
 

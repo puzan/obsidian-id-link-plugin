@@ -97,6 +97,29 @@ export default class IdLinkPlugin extends Plugin {
 			},
 		});
 
+		this.addCommand({
+			id: "copy-id",
+			name: "Copy Id",
+			callback: () => {
+				const activeFile = this.app.workspace.getActiveFile();
+
+				if (!activeFile) {
+					new Notice("No active file");
+					return;
+				}
+
+				const id = this.findId(activeFile);
+
+				if (!id) {
+					new Notice("No ID found in the file");
+					return;
+				}
+
+				navigator.clipboard.writeText(id);
+				new Notice(`ID copied to clipboard: ${id}`);
+			},
+		});
+
 		this.registerObsidianProtocolHandler("id-link", (params) => {
 			const dvApi = this.getDataViewApi();
 
@@ -222,7 +245,7 @@ export default class IdLinkPlugin extends Plugin {
 		new Notice("ID link copied to clipboard");
 	}
 
-	async findIdAndGenerateLink(file: TFile): Promise<string | undefined> {
+	private findId(file: TFile): string | undefined {
 		let id: string | undefined;
 
 		// Try to find ID from property
@@ -234,6 +257,12 @@ export default class IdLinkPlugin extends Plugin {
 		if (!id && this.settings.idSources.includes(IdSource.FileName)) {
 			id = this.findIdInFileName(file.name);
 		}
+
+		return id?.toString();
+	}
+
+	async findIdAndGenerateLink(file: TFile): Promise<string | undefined> {
+		let id = this.findId(file);
 
 		// Generate new ID if not found and auto generation is enabled
 		if (
