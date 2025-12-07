@@ -1,7 +1,7 @@
 {
 	"id": "id-link",
 	"name": "Id Link",
-	"version": "1.6.0",
+	"version": "1.7.0",
 	"minAppVersion": "1.7.2",
 	"description": "Add external links based on some property",
 	"author": "@puzan",
