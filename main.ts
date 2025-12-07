@@ -149,6 +149,11 @@ export default class IdLinkPlugin extends Plugin {
 				this.showErrorAndThrow(`Page with id ${id} is not found`);
 			}
 
+			const blockId = params["block-id"];
+			if (blockId) {
+				path += `#^${blockId}`;
+			}
+
 			this.app.workspace.openLinkText(path, "", false, { active: true });
 		});
 	}
