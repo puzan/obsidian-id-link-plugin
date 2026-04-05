@@ -30,7 +30,7 @@ The plugin can find IDs from two sources (configurable in settings):
 
 ### Generating ID Links
 
-The plugin provides two ways to generate ID links:
+The plugin provides commands to generate ID links:
 
 - Through Command Palette (`Cmd/Ctrl + P`): "Copy ID Link"
 - Through file context menu (right-click on a note)
@@ -41,6 +41,20 @@ Generated links follow this format:
 
 ```
 obsidian://id-link?vault=<vault-name>&id=<note-id>
+```
+
+### Generating Block-Level ID Links
+
+You can also generate a link that points to a specific block (paragraph) within a note:
+
+- Through Command Palette (`Cmd/Ctrl + P`): "Copy ID Link to Block"
+
+Place the cursor inside the target block before running the command. If the block has no Obsidian block marker (`^blockId`), one is automatically generated and appended to the line.
+
+Generated block links follow this format:
+
+```
+obsidian://id-link?vault=<vault-name>&id=<note-id>&block-id=<block-id>
 ```
 
 ### Copying IDs

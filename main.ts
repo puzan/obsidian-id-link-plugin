@@ -1,5 +1,6 @@
 import {
 	App,
+	Editor,
 	Notice,
 	Plugin,
 	PluginSettingTab,
@@ -84,6 +85,27 @@ export default class IdLinkPlugin extends Plugin {
 				}
 
 				this.generateLinkAndCopyToClipboard(activeFile);
+			},
+		});
+
+		this.addCommand({
+			id: "copy-id-link-to-block",
+			name: "Copy ID link to block",
+			editorCallback: async (editor, ctx) => {
+				const file = ctx.file;
+				if (!file) return;
+
+				const link = await this.findIdAndGenerateBlockLink(
+					file,
+					editor,
+				);
+				if (!link) {
+					new Notice("No ID found in the file");
+					return;
+				}
+
+				navigator.clipboard.writeText(link);
+				new Notice("ID link to block copied to clipboard");
 			},
 		});
 
@@ -224,9 +246,26 @@ export default class IdLinkPlugin extends Plugin {
 		return cache?.frontmatter?.[this.settings.idProperty];
 	}
 
-	generateIdLink(id: string): string {
+	generateIdLink(id: string, blockId?: string): string {
 		const vaultName = this.app.vault.getName();
-		return `obsidian://id-link?vault=${encodeURIComponent(vaultName)}&id=${encodeURIComponent(id)}`;
+		let link = `obsidian://id-link?vault=${encodeURIComponent(vaultName)}&id=${encodeURIComponent(id)}`;
+		if (blockId) link += `&block-id=${encodeURIComponent(blockId)}`;
+		return link;
+	}
+
+	private async findOrGenerateId(file: TFile): Promise<string | undefined> {
+		let id = this.findId(file);
+
+		if (
+			!id &&
+			this.settings.autoGenerateId &&
+			this.settings.idSources.includes(IdSource.Property)
+		) {
+			id = this.generateNewId();
+			await this.saveIdToProperty(file, id);
+		}
+
+		return id?.toString();
 	}
 
 	private generateNewId(): string {
@@ -266,24 +305,50 @@ export default class IdLinkPlugin extends Plugin {
 		return id?.toString();
 	}
 
+	private generateBlockId(): string {
+		return Math.random().toString(36).slice(2, 8);
+	}
+
+	private findBlockId(file: TFile, line: number): string | undefined {
+		const blocks = this.app.metadataCache.getFileCache(file)?.blocks;
+		if (!blocks) return undefined;
+		for (const [id, block] of Object.entries(blocks)) {
+			if (
+				block.position.start.line <= line &&
+				line <= block.position.end.line
+			) {
+				return id;
+			}
+		}
+		return undefined;
+	}
+
+	async findIdAndGenerateBlockLink(
+		file: TFile,
+		editor: Editor,
+	): Promise<string | undefined> {
+		const id = await this.findOrGenerateId(file);
+		if (!id) return undefined;
+
+		const line = editor.getCursor().line;
+		let blockId = this.findBlockId(file, line);
+
+		if (!blockId) {
+			blockId = this.generateBlockId();
+			const lineContent = editor.getLine(line);
+			editor.replaceRange(
+				lineContent.trimEnd() + ` ^${blockId}`,
+				{ line, ch: 0 },
+				{ line, ch: lineContent.length },
+			);
+		}
+
+		return this.generateIdLink(id, blockId);
+	}
+
 	async findIdAndGenerateLink(file: TFile): Promise<string | undefined> {
-		let id = this.findId(file);
-
-		// Generate new ID if not found and auto generation is enabled
-		if (
-			!id &&
-			this.settings.autoGenerateId &&
-			this.settings.idSources.includes(IdSource.Property)
-		) {
-			id = this.generateNewId();
-			await this.saveIdToProperty(file, id);
-		}
-
-		if (!id) {
-			return undefined;
-		}
-
-		return this.generateIdLink(id);
+		const id = await this.findOrGenerateId(file);
+		return id ? this.generateIdLink(id) : undefined;
 	}
 
 	private async syncIdFromFileName(file: TFile): Promise<void> {
