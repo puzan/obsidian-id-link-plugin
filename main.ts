@@ -273,9 +273,21 @@ export default class IdLinkPlugin extends Plugin {
 	}
 
 	private async saveIdToProperty(file: TFile, id: string): Promise<void> {
+		// processFrontMatter writes to disk but the editor reloads
+		// asynchronously. Wait for metadataCache 'changed' so callers can
+		// rely on up-to-date cursor/selection positions after this returns.
+		const editorSynced = new Promise<void>((resolve) => {
+			const ref = this.app.metadataCache.on("changed", (changedFile) => {
+				if (changedFile.path === file.path) {
+					this.app.metadataCache.offref(ref);
+					resolve();
+				}
+			});
+		});
 		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 			frontmatter[this.settings.idProperty] = id;
 		});
+		await editorSynced;
 	}
 
 	private async generateLinkAndCopyToClipboard(file: TFile): Promise<void> {
@@ -336,11 +348,13 @@ export default class IdLinkPlugin extends Plugin {
 		if (!blockId) {
 			blockId = this.generateBlockId();
 			const lineContent = editor.getLine(line);
+			const selections = editor.listSelections();
 			editor.replaceRange(
 				lineContent.trimEnd() + ` ^${blockId}`,
 				{ line, ch: 0 },
 				{ line, ch: lineContent.length },
 			);
+			editor.setSelections(selections);
 		}
 
 		return this.generateIdLink(id, blockId);
