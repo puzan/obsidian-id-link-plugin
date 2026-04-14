@@ -1,6 +1,6 @@
 {
 	"name": "id-link",
-	"version": "1.8.1",
+	"version": "1.8.2",
 	"description": "Add external links based on some property",
 	"main": "main.js",
 	"scripts": {
