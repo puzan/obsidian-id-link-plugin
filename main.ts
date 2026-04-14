@@ -122,7 +122,7 @@ export default class IdLinkPlugin extends Plugin {
 		this.addCommand({
 			id: "copy-id",
 			name: "Copy Id",
-			callback: () => {
+			callback: async () => {
 				const activeFile = this.app.workspace.getActiveFile();
 
 				if (!activeFile) {
@@ -130,7 +130,7 @@ export default class IdLinkPlugin extends Plugin {
 					return;
 				}
 
-				const id = this.findId(activeFile);
+				const id = await this.findOrGenerateId(activeFile);
 
 				if (!id) {
 					new Notice("No ID found in the file");
